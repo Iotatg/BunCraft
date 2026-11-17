@@ -1,0 +1,20 @@
+[package]
+name = "buncraft-api"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "BunCraft HTTP API and drawing replay server"
+
+[[bin]]
+name = "buncraft-api"
+path = "src/main.rs"
+
+[dependencies]
+buncraft-core = { workspace = true }
+buncraft-render = { workspace = true }
+buncraft-brain = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+axum = { workspace = true }
+tokio = { workspace = true }

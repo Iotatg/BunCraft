@@ -1,0 +1,40 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/buncraft-core",
+    "crates/buncraft-render",
+    "crates/buncraft-anime",
+    "crates/buncraft-brain",
+    "crates/buncraft-cli",
+    "crates/buncraft-api",
+    "crates/buncraft-science",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.80"
+license = "MIT"
+authors = ["BunCraft contributors"]
+repository = "https://github.com/buncraft/buncraft"
+
+[workspace.dependencies]
+buncraft-core = { path = "crates/buncraft-core" }
+buncraft-render = { path = "crates/buncraft-render" }
+buncraft-anime = { path = "crates/buncraft-anime" }
+buncraft-brain = { path = "crates/buncraft-brain" }
+buncraft-science = { path = "crates/buncraft-science" }
+
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+anyhow = "1"
+tiny-skia = "0.11"
+clap = { version = "4", features = ["derive"] }
+axum = "0.7"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "fs"] }
+tower-http = { version = "0.5", features = ["fs", "cors", "trace"] }
+
+[profile.release]
+lto = "thin"
+codegen-units = 1

@@ -1,0 +1,12 @@
+[package]
+name = "buncraft-render"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "Raster and SVG renderer for BunCraft drawing actions"
+
+[dependencies]
+buncraft-core = { workspace = true }
+tiny-skia = { workspace = true }
+serde = { workspace = true }

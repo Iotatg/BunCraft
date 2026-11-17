@@ -1,0 +1,13 @@
+# Build artifacts
+/target
+**/*.rs.bk
+
+# Third-party repositories cloned for source study only.
+# They are not part of BunCraft, are not compiled, and carry their own
+# licences. Reproduce them with the commands in
+# research/physics_math_science/repo_manifest.md.
+/research/upstream
+
+# Local scratch
+*.log
+.DS_Store

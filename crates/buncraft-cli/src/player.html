@@ -1,0 +1,313 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>BunCraft — drawing replay</title>
+<style>
+  :root {
+    --bg: #14131a;
+    --panel: #1d1c25;
+    --line: #2e2c39;
+    --ink: #e8e5f0;
+    --muted: #9a95ac;
+    --accent: #e0604c;
+    --accent-2: #6ea8d8;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: radial-gradient(1200px 800px at 50% -10%, #23212e 0%, var(--bg) 60%);
+    color: var(--ink);
+    font: 14px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    display: flex; flex-direction: column;
+  }
+  header {
+    display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap;
+    padding: 16px 22px 10px;
+  }
+  header h1 { font-size: 16px; margin: 0; letter-spacing: .02em; font-weight: 600; }
+  header .meta { color: var(--muted); font-size: 12px; }
+  main {
+    flex: 1; min-height: 0; display: flex; gap: 18px; padding: 0 22px 16px;
+  }
+  .stage-wrap {
+    flex: 1; min-width: 0; display: flex; align-items: center; justify-content: center;
+    background: #0f0e13; border: 1px solid var(--line); border-radius: 14px;
+    padding: 14px; overflow: hidden;
+  }
+  canvas {
+    max-width: 100%; max-height: 100%;
+    background: #fcfaf6; border-radius: 6px;
+    box-shadow: 0 18px 50px rgba(0,0,0,.55);
+  }
+  aside {
+    width: 280px; flex: 0 0 280px; display: flex; flex-direction: column; gap: 12px;
+  }
+  .card {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px;
+  }
+  .card h2 { margin: 0 0 8px; font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+  .row { display: flex; justify-content: space-between; gap: 10px; padding: 3px 0; font-size: 12px; }
+  .row span:last-child { color: var(--muted); font-variant-numeric: tabular-nums; }
+  .big { font-size: 26px; font-variant-numeric: tabular-nums; letter-spacing: .01em; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip {
+    font-size: 11px; padding: 4px 8px; border-radius: 999px; cursor: pointer;
+    border: 1px solid var(--line); background: #16151d; color: var(--muted);
+  }
+  .chip:hover { color: var(--ink); border-color: #46425a; }
+  .chip.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+  footer {
+    border-top: 1px solid var(--line); padding: 10px 22px 14px; display: flex; align-items: center; gap: 14px;
+  }
+  button {
+    appearance: none; border: 1px solid var(--line); background: #201f2a; color: var(--ink);
+    border-radius: 9px; padding: 8px 14px; font: inherit; cursor: pointer;
+  }
+  button:hover { border-color: #4b4660; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+  input[type=range] { flex: 1; accent-color: var(--accent); }
+  select { background: #201f2a; color: var(--ink); border: 1px solid var(--line); border-radius: 8px; padding: 7px 8px; font: inherit; }
+  .time { font-variant-numeric: tabular-nums; color: var(--muted); min-width: 96px; text-align: right; }
+  .hint { color: var(--muted); font-size: 11px; }
+  @media (max-width: 900px) {
+    main { flex-direction: column; }
+    aside { width: auto; flex: 0 0 auto; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1 id="title">BunCraft</h1>
+  <div class="meta" id="subtitle"></div>
+</header>
+<main>
+  <div class="stage-wrap"><canvas id="c" width="1200" height="1600"></canvas></div>
+  <aside>
+    <div class="card">
+      <h2>Drawing state</h2>
+      <div class="big" id="clock">0.0s</div>
+      <div class="hint" id="stageLabel">composition</div>
+    </div>
+    <div class="card">
+      <h2>Timeline</h2>
+      <div class="chips" id="chips"></div>
+    </div>
+    <div class="card">
+      <h2>Statistics</h2>
+      <div class="row"><span>Strokes</span><span id="sStrokes">–</span></div>
+      <div class="row"><span>Fills</span><span id="sFills">–</span></div>
+      <div class="row"><span>Points</span><span id="sPoints">–</span></div>
+      <div class="row"><span>Duration</span><span id="sDur">–</span></div>
+      <div class="row"><span>Self-check</span><span id="sScore">–</span></div>
+    </div>
+  </aside>
+</main>
+<footer>
+  <button class="primary" id="play">Pause</button>
+  <button id="restart">Restart</button>
+  <select id="speed">
+    <option value="0.5">0.5×</option>
+    <option value="1" selected>1×</option>
+    <option value="2">2×</option>
+    <option value="4">4×</option>
+    <option value="8">8×</option>
+  </select>
+  <input type="range" id="scrub" min="0" max="1000" value="0" step="1" />
+  <div class="time" id="time">0.0 / 0.0s</div>
+</footer>
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const params = new URLSearchParams(location.search);
+const src = params.get('src') || 'timeline.json';
+
+let doc, layers = [], actions = [], marks = [], total = 0;
+let t = 0, playing = true, speed = 1, last = 0;
+
+function rgba(c, mul = 1) {
+  return `rgba(${c.r},${c.g},${c.b},${(c.a / 255 * mul).toFixed(3)})`;
+}
+
+function polyPath(pts) {
+  ctx.beginPath();
+  if (!pts.length) return;
+  ctx.moveTo(pts[0].x, pts[0].y);
+  for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+  ctx.closePath();
+}
+
+function progressOf(a, now) {
+  if (!a.timing) return 1;
+  const s = a.timing.start_ms, d = a.timing.duration_ms;
+  if (now <= s) return 0;
+  if (now >= s + d) return 1;
+  return (now - s) / d;
+}
+
+function drawStroke(a, p) {
+  const pts = a.points;
+  if (!pts || pts.length < 2 || p <= 0) return;
+  const vis = (pts.length - 1) * p;
+  const whole = Math.floor(vis);
+  const frac = vis - whole;
+  const b = a.brush;
+
+  ctx.save();
+  if (a.clip) { polyPath(a.clip); ctx.clip(); }
+  ctx.strokeStyle = rgba(b.color, b.opacity);
+  ctx.lineWidth = b.size;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.beginPath();
+  ctx.moveTo(pts[0].x, pts[0].y);
+  for (let i = 1; i <= whole && i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+  if (whole + 1 < pts.length && frac > 0) {
+    const a0 = pts[whole], a1 = pts[whole + 1];
+    ctx.lineTo(a0.x + (a1.x - a0.x) * frac, a0.y + (a1.y - a0.y) * frac);
+  }
+  if (b.kind === 'airbrush') {
+    ctx.lineWidth = b.size * 1.8;
+    ctx.strokeStyle = rgba(b.color, b.opacity * 0.35);
+  }
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawFill(a, p) {
+  if (!a.polygon || a.polygon.length < 3 || p <= 0) return;
+  ctx.save();
+  if (a.clip) { polyPath(a.clip); ctx.clip(); }
+  polyPath(a.polygon);
+  ctx.fillStyle = rgba(a.color, a.opacity * p);
+  ctx.fill();
+  ctx.restore();
+}
+
+function renderFrame(now) {
+  ctx.globalAlpha = 1;
+  ctx.fillStyle = rgba(doc.canvas.background);
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  for (const layer of layers) {
+    if (!layer.visible) continue;
+    ctx.globalAlpha = layer.opacity;
+    for (const a of actions) {
+      if (a.layer !== layer.id) continue;
+      const p = progressOf(a, now);
+      if (p <= 0) continue;
+      if (a.kind === 'fill') drawFill(a, p); else drawStroke(a, p);
+    }
+  }
+  ctx.globalAlpha = 1;
+}
+
+function stageAt(now) {
+  let cur = marks[0] ? marks[0].label : '';
+  for (const m of marks) if (now >= m.start) cur = m.label;
+  return cur;
+}
+
+function fmt(s) { return s.toFixed(1); }
+
+function updateUI() {
+  document.getElementById('clock').textContent = fmt(t / 1000) + 's';
+  document.getElementById('stageLabel').textContent = stageAt(t);
+  document.getElementById('time').textContent = fmt(t / 1000) + ' / ' + fmt(total / 1000) + 's';
+  document.getElementById('scrub').value = total ? Math.round(t / total * 1000) : 0;
+  const idx = marks.reduce((acc, m, i) => (t >= m.start ? i : acc), 0);
+  document.querySelectorAll('.chip').forEach((el, i) => el.classList.toggle('active', i === idx));
+}
+
+function loop(now) {
+  if (!last) last = now;
+  const dt = now - last;
+  last = now;
+  if (playing) {
+    t += dt * speed;
+    if (t >= total) { t = total; playing = false; document.getElementById('play').textContent = 'Play'; }
+  }
+  renderFrame(t);
+  updateUI();
+  requestAnimationFrame(loop);
+}
+
+function buildChips() {
+  const box = document.getElementById('chips');
+  box.innerHTML = '';
+  marks.forEach((m) => {
+    const el = document.createElement('div');
+    el.className = 'chip';
+    el.textContent = m.label;
+    el.onclick = () => { t = m.start; playing = false; document.getElementById('play').textContent = 'Play'; renderFrame(t); updateUI(); };
+    box.appendChild(el);
+  });
+}
+
+async function boot() {
+  const res = await fetch(src, { cache: 'no-store' });
+  if (!res.ok) throw new Error('cannot load ' + src);
+  doc = await res.json();
+  layers = [...doc.layers].sort((a, b) => a.id - b.id);
+  actions = doc.actions.map((a, i) => ({ ...a, timing: doc.timings[i] }));
+  total = doc.duration_ms || 0;
+
+  // stage marks from action order
+  const seen = new Map();
+  actions.forEach((a) => {
+    if (!seen.has(a.stage)) seen.set(a.stage, a.timing ? a.timing.start_ms : 0);
+  });
+  const labels = {
+    composition: 'composition', rough: 'rough sketch', construction: 'construction',
+    face: 'face', eyes: 'eyes', nose_mouth: 'nose & mouth', hair: 'hair',
+    body: 'body', clothing: 'clothing', lineart: 'lineart', color: 'colour',
+    shading: 'shading', correction: 'correction'
+  };
+  marks = [...seen.entries()].map(([k, start]) => ({ stage: k, start, label: labels[k] || k }));
+
+  document.getElementById('title').textContent = doc.meta.title;
+  document.getElementById('subtitle').textContent =
+    `${doc.canvas.width}×${doc.canvas.height} · ${actions.length} actions · ${fmt(total / 1000)}s`;
+  document.getElementById('sStrokes').textContent = actions.filter(a => a.kind === 'stroke').length;
+  document.getElementById('sFills').textContent = actions.filter(a => a.kind === 'fill').length;
+  document.getElementById('sPoints').textContent = actions.reduce((n, a) => n + (a.points ? a.points.length : 0), 0);
+  document.getElementById('sDur').textContent = fmt(total / 1000) + 's';
+  document.getElementById('sScore').textContent = doc.evaluation ? doc.evaluation.score.toFixed(1) + '/100' : '–';
+  buildChips();
+
+  // Deep link to a moment in the drawing (?t=20000). Also used for thumbnails
+  // and for headless verification.
+  const tParam = params.get('t');
+  if (tParam !== null) {
+    t = Math.max(0, Math.min(total, parseFloat(tParam) || 0));
+    playing = false;
+    document.getElementById('play').textContent = 'Play';
+  }
+  renderFrame(t);
+  updateUI();
+  requestAnimationFrame(loop);
+}
+
+document.getElementById('play').onclick = () => {
+  if (t >= total) t = 0;
+  playing = !playing;
+  document.getElementById('play').textContent = playing ? 'Pause' : 'Play';
+};
+document.getElementById('restart').onclick = () => { t = 0; playing = true; document.getElementById('play').textContent = 'Pause'; };
+document.getElementById('speed').onchange = (e) => { speed = parseFloat(e.target.value); };
+document.getElementById('scrub').oninput = (e) => {
+  playing = false;
+  document.getElementById('play').textContent = 'Play';
+  t = total * (parseInt(e.target.value, 10) / 1000);
+  renderFrame(t); updateUI();
+};
+window.addEventListener('keydown', (e) => {
+  if (e.code === 'Space') { e.preventDefault(); document.getElementById('play').click(); }
+});
+
+boot().catch((err) => {
+  document.getElementById('subtitle').textContent = String(err);
+});
+</script>
+</body>
+</html>

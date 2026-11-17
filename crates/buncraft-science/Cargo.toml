@@ -1,0 +1,11 @@
+[package]
+name = "buncraft-science"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+description = "Independent, tested implementations of the physics, geometry and colour science BunCraft needs"
+
+[dependencies]

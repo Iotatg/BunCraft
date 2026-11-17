@@ -1,0 +1,10 @@
+[package]
+name = "buncraft-anime"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "Anime construction geometry and stroke generator for BunCraft"
+
+[dependencies]
+buncraft-core = { workspace = true }

@@ -1,0 +1,20 @@
+[package]
+name = "buncraft-cli"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "BunCraft command line artist"
+
+[[bin]]
+name = "buncraft"
+path = "src/main.rs"
+
+[dependencies]
+buncraft-core = { workspace = true }
+buncraft-render = { workspace = true }
+buncraft-anime = { workspace = true }
+buncraft-brain = { workspace = true }
+serde_json = { workspace = true }
+clap = { workspace = true }
+anyhow = { workspace = true }
